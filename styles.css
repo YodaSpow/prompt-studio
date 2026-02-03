@@ -137,6 +137,16 @@ p {
   margin-bottom: 0;
 }
 
+.output-live-header {
+  margin: 0;
+}
+
+.output-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -233,11 +243,13 @@ button.ghost {
 }
 
 .output-shell {
+  margin-top: 0;
   background: #101010;
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid #1d1d1d;
 }
+
 
 .output-header {
   display: flex;

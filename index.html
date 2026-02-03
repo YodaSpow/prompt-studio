@@ -16,7 +16,7 @@
         <h1>Build structured Copilot prompts from real transcripts.</h1>
         <p class="lead">
           Curate reusable prompt cards, scope them to projects, and merge Teams call transcripts into a Core prompt with one click.
-          Transcript Ready — Paste text or drop .vtt files
+          Transcript Ready — Paste text or drop .vtt files. For long transcripts, consider ChatGPT.
         </p>
         <div class="chip-row hero-chips">
           <span class="chip">Local‑Only</span>
@@ -56,7 +56,7 @@
         </div>
         <div class="grid">
           <label class="field">
-            <span>SOP Title</span>
+            <span>Title</span>
             <input id="sopTitle" type="text" placeholder="e.g. Walkthrough – CMS – CORE Training" />
           </label>
           <label class="field">
@@ -110,10 +110,6 @@
         </div>
         <div class="toggle-row">
           <label class="toggle">
-            <input id="livePreviewToggle" type="checkbox" checked />
-            <span>Live Preview</span>
-          </label>
-          <label class="toggle">
             <input id="editTemplateToggle" type="checkbox" />
             <span>Edit Template</span>
           </label>
@@ -130,6 +126,10 @@
           <label class="toggle">
             <input id="timestampToggle" type="checkbox" />
             <span>Include timestamps</span>
+          </label>
+          <label class="toggle">
+            <input id="reduceLineBreaksToggle" type="checkbox" />
+            <span>Reduce line breaks</span>
           </label>
         </div>
         <div class="upload">
@@ -164,18 +164,24 @@
             <div id="lineBar" class="line-meter__bar"></div>
           </div>
         </div>
+        <div id="savedChars" class="muted saved-chars"></div>
         <div class="output-actions">
-          <button id="buildBtn">Build Core Prompt</button>
+          <button id="resetBtn">Reset all</button>
         </div>
-        <div class="output-shell">
-          <div class="output-header">
-            <span>Final Prompt Output</span>
-            <div class="output-actions-inline">
-              <span id="copyStatus" class="muted"></span>
-              <button id="copyBtnTop" class="ghost copy-pill">COPY</button>
-            </div>
+        <div class="output-stack">
+          <div class="panel__header output-live-header">
+            <h3>Live Preview</h3>
           </div>
-          <pre id="output" class="output" aria-live="polite"></pre>
+          <div class="output-shell">
+            <div class="output-header">
+              <span>Final Prompt Output</span>
+              <div class="output-actions-inline">
+                <span id="copyStatus" class="muted"></span>
+                <button id="copyBtnTop" class="ghost copy-pill">COPY</button>
+              </div>
+            </div>
+            <pre id="output" class="output" aria-live="polite"></pre>
+          </div>
         </div>
       </section>
     </main>

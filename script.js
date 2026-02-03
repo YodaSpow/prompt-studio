@@ -144,12 +144,13 @@ const lineMeter = document.getElementById("lineMeter");
 const lineCount = document.getElementById("lineCount");
 const lineBar = document.getElementById("lineBar");
 const lineNote = document.getElementById("lineNote");
+const savedChars = document.getElementById("savedChars");
 const copyStatus = document.getElementById("copyStatus");
 
 const newCardBtn = document.getElementById("newCardBtn");
 const saveCardBtn = document.getElementById("saveCardBtn");
 const deleteCardBtn = document.getElementById("deleteCardBtn");
-const buildBtn = document.getElementById("buildBtn");
+const resetBtn = document.getElementById("resetBtn");
 const copyBtnTop = document.getElementById("copyBtnTop");
 copyBtnTop.textContent = "COPY";
 
@@ -157,9 +158,9 @@ const cardDialog = document.getElementById("cardDialog");
 const cardNameInput = document.getElementById("cardNameInput");
 
 const vttInput = document.getElementById("vttInput");
-const livePreviewToggle = document.getElementById("livePreviewToggle");
 const editTemplateToggle = document.getElementById("editTemplateToggle");
 const timestampToggle = document.getElementById("timestampToggle");
+const reduceLineBreaksToggle = document.getElementById("reduceLineBreaksToggle");
 const transcriptPanel = document.getElementById("transcriptPanel");
 const toggleTranscript = document.getElementById("toggleTranscript");
 const complexityPanel = document.getElementById("complexityPanel");
@@ -258,11 +259,17 @@ function deleteCard() {
   setTemplateFromSelection();
 }
 
-function getPromptText() {
+function applyLineBreakOptions(text) {
+  if (!reduceLineBreaksToggle.checked) return text;
+  return text.replace(/\s*\n+\s*/g, " ");
+}
+
+function getPromptText(options = {}) {
+  const transcriptOverride = options.transcriptOverride ?? null;
   const template = templateInput.value || "";
   const projectName = projectNameInput.value.trim();
   const projectScope = projectScopeInput.value.trim();
-  const transcript = transcriptInput.value.trim();
+  const transcript = (transcriptOverride ?? transcriptInput.value).trim();
   const sopTitle = sopTitleInput.value.trim();
   const processPurpose = processPurposeInput.value.trim();
   const sourceMaterial = sourceMaterialInput.value.trim();
@@ -307,15 +314,23 @@ function removeSection(text, heading) {
   return text.replace(pattern, "");
 }
 
+function getAdjustedPromptText() {
+  return applyLineBreakOptions(getPromptText()).trim();
+}
+
 function buildPrompt() {
-  const text = getPromptText();
-  output.textContent = text;
-  updateLineMeter(text);
+  const rawText = getPromptText();
+  const adjustedText = applyLineBreakOptions(rawText).trim();
+  const saved = Math.max(rawText.length - adjustedText.length, 0);
+  savedChars.textContent = reduceLineBreaksToggle.checked
+    ? `Reduce line breaks saved characters: ${saved.toLocaleString()}`
+    : "";
+  output.textContent = adjustedText;
+  updateLineMeter(adjustedText);
   updateCopyState();
 }
 
 function updateLivePreview() {
-  if (!livePreviewToggle.checked) return;
   buildPrompt();
 }
 
@@ -325,6 +340,53 @@ function copyPrompt() {
   const text = output.textContent.trim();
   if (!text) return;
   navigator.clipboard.writeText(text);
+}
+
+function resetAll() {
+  const ok = window.confirm("Reset all fields to defaults? This cannot be undone.");
+  if (!ok) return;
+
+  ensureDefaultCard();
+  const defaultCard = state.cards.find((card) => card.id === "sop-template") || state.cards[0];
+  state.selectedId = defaultCard?.id || null;
+  refreshSelect();
+  if (state.selectedId) {
+    cardSelect.value = state.selectedId;
+  }
+  setTemplateFromSelection();
+
+  projectNameInput.value = "";
+  projectScopeInput.value = "";
+  sopTitleInput.value = "";
+  processPurposeInput.value = "";
+  sourceMaterialInput.value = "";
+  requiredResourcesInput.value = "";
+  complexityLevelsInput.value = "";
+  transcriptInput.value = "";
+  cardNameInput.value = "";
+
+  linkList.innerHTML = "";
+  dynamicExampleList.innerHTML = "";
+
+  editTemplateToggle.checked = false;
+  templateInput.readOnly = true;
+  timestampToggle.checked = false;
+  reduceLineBreaksToggle.checked = false;
+
+  transcriptPanel.classList.add("is-collapsed");
+  toggleTranscript.textContent = "Paste transcript text (alternative to .vtt)";
+  complexityPanel.classList.add("is-collapsed");
+  toggleComplexity.textContent = "Show";
+
+  vttInput.value = "";
+  lastVttRaw = "";
+  lastVttParsed = "";
+  renderSpeakers([]);
+  speakerMeta.textContent = "";
+
+  updateLineMeter(getAdjustedPromptText());
+  buildPrompt();
+  updateCopyState();
 }
 
 function parseVtt(text, includeTimestamps = false) {
@@ -455,7 +517,7 @@ function updateLineMeter(text) {
   if (adjustedChars >= maxChars) {
     lineMeter.classList.add("line-meter--bad");
     lineNote.textContent =
-      "Copilot is likely to choke beyond 10,240 characters. Consider using ChatGPT.";
+      "May exceed Copilot’s 10,240-character limit. Use ChatGPT if it fails.";
   } else {
     lineMeter.classList.remove("line-meter--bad");
     lineNote.textContent = "";
@@ -491,7 +553,7 @@ function handleVttUpload(file) {
     if (!parsed) return;
     const existing = transcriptInput.value.trim();
     transcriptInput.value = existing ? `${existing}\n\n${parsed}` : parsed;
-    updateLineMeter(getPromptText());
+    updateLineMeter(getAdjustedPromptText());
     updateCopyState();
     updateLivePreview();
   };
@@ -513,7 +575,7 @@ cardDialog.addEventListener("close", () => {
 
 saveCardBtn.addEventListener("click", saveCard);
 deleteCardBtn.addEventListener("click", deleteCard);
-buildBtn.addEventListener("click", buildPrompt);
+resetBtn.addEventListener("click", resetAll);
 copyBtnTop.addEventListener("click", copyPrompt);
 
 vttInput.addEventListener("change", (event) => {
@@ -521,9 +583,14 @@ vttInput.addEventListener("change", (event) => {
   handleVttUpload(file);
 });
 
+reduceLineBreaksToggle.addEventListener("change", () => {
+  updateLineMeter(getAdjustedPromptText());
+  updateLivePreview();
+});
+
 transcriptInput.addEventListener("input", () => {
   renderSpeakers(extractSpeakers(transcriptInput.value));
-  updateLineMeter(getPromptText());
+  updateLineMeter(getAdjustedPromptText());
   updateCopyState();
   updateLivePreview();
 });
@@ -539,7 +606,7 @@ transcriptInput.addEventListener("input", () => {
   complexityLevelsInput,
 ].forEach((el) => {
   el.addEventListener("input", () => {
-    updateLineMeter(getPromptText());
+    updateLineMeter(getAdjustedPromptText());
     updateCopyState();
     updateLivePreview();
   });
@@ -550,19 +617,13 @@ ensureCards();
 ensureDefaultCard();
 refreshSelect();
 setTemplateFromSelection();
-updateLineMeter(getPromptText());
+updateLineMeter(getAdjustedPromptText());
 buildPrompt();
 updateCopyState();
 setTimeout(updateCopyState, 0);
 
 editTemplateToggle.addEventListener("change", () => {
   templateInput.readOnly = !editTemplateToggle.checked;
-});
-
-livePreviewToggle.addEventListener("change", () => {
-  if (livePreviewToggle.checked) {
-    buildPrompt();
-  }
 });
 
 window.addEventListener("pageshow", () => {
@@ -604,7 +665,7 @@ timestampToggle.addEventListener("change", () => {
       current.slice(idx + lastVttParsed.length);
     transcriptInput.value = updated.trim();
     lastVttParsed = reparsed;
-    updateLineMeter(getPromptText());
+    updateLineMeter(getAdjustedPromptText());
     updateCopyState();
     updateLivePreview();
   }
@@ -614,7 +675,7 @@ addDynamicExampleBtn.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
   addDynamicExample();
-  updateLineMeter(getPromptText());
+  updateLineMeter(getAdjustedPromptText());
   updateLivePreview();
 });
 
@@ -624,7 +685,7 @@ addLinkBlockBtn.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
   addLinkBlock();
-  updateLineMeter(getPromptText());
+  updateLineMeter(getAdjustedPromptText());
   updateLivePreview();
 });
 
@@ -658,7 +719,7 @@ function addDynamicExample() {
   dynamicExampleList.appendChild(card);
 
   const onChange = () => {
-    updateLineMeter(getPromptText());
+    updateLineMeter(getAdjustedPromptText());
     updateLivePreview();
   };
 
@@ -666,7 +727,7 @@ function addDynamicExample() {
   codeInput.addEventListener("input", onChange);
   removeBtn.addEventListener("click", () => {
     card.remove();
-    updateLineMeter(getPromptText());
+    updateLineMeter(getAdjustedPromptText());
     updateLivePreview();
   });
 }
@@ -728,7 +789,7 @@ function addLinkBlock() {
   linkList.appendChild(card);
 
   const onChange = () => {
-    updateLineMeter(getPromptText());
+    updateLineMeter(getAdjustedPromptText());
     updateLivePreview();
   };
 
@@ -767,7 +828,7 @@ function hasLinkContent() {
 
 function removeLinkCard(card) {
   card.remove();
-  updateLineMeter(getPromptText());
+  updateLineMeter(getAdjustedPromptText());
   updateLivePreview();
 }
 
