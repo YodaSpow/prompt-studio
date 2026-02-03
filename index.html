@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Prompt Studio for Copilot</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <header class="hero hero--banner">
+      <div class="hero__content">
+        <p class="eyebrow">Prompt Studio</p>
+        <h1>Build structured Copilot prompts from real transcripts.</h1>
+        <p class="lead">
+          Curate reusable prompt cards, scope them to projects, and merge Teams call transcripts into a Core prompt with one click.
+          Transcript Ready — Paste text or drop .vtt files
+        </p>
+        <div class="chip-row hero-chips">
+          <span class="chip">Local‑Only</span>
+          <span class="chip">Prompt Cards</span>
+          <span class="chip">Transcript Ready</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="panel">
+        <div class="panel__header">
+          <h2>Project Context</h2>
+          <p>Define the scope and choose a card template.</p>
+        </div>
+        <label class="field">
+          <span>Project name</span>
+          <input id="projectName" type="text" placeholder="e.g. CMS CORE Training SOP" />
+        </label>
+        <label class="field">
+          <span>Project scope</span>
+          <input id="projectScope" type="text" placeholder="e.g. CRM / CMS builds / Non-DV" />
+        </label>
+        <label class="field">
+          <span>Select a prompt card</span>
+          <select id="cardSelect"></select>
+        </label>
+        <div class="card-actions is-hidden">
+          <button id="newCardBtn" class="ghost">New card</button>
+          <button id="saveCardBtn" class="ghost">Save card</button>
+          <button id="deleteCardBtn" class="ghost">Delete card</button>
+        </div>
+
+        <div class="panel__header">
+          <h2>Template Inputs</h2>
+          <p>Populate placeholders without editing the template directly.</p>
+        </div>
+        <div class="grid">
+          <label class="field">
+            <span>SOP Title</span>
+            <input id="sopTitle" type="text" placeholder="e.g. Walkthrough – CMS – CORE Training" />
+          </label>
+          <label class="field">
+            <span>Process Purpose</span>
+            <input id="processPurpose" type="text" placeholder="e.g. Ensure consistency across the CRM team" />
+          </label>
+          <label class="field">
+            <span>Source Material Name</span>
+            <input id="sourceMaterial" type="text" placeholder="e.g. Training recording - 2026-02-03" />
+          </label>
+        </div>
+        <label class="field">
+          <span>Required Resources</span>
+          <textarea id="requiredResources" class="template-input" placeholder="- Tool 1&#10;- Tool 2"></textarea>
+        </label>
+        <div class="field field--collapsible">
+          <div class="inline-row">
+            <span>Complexity Levels (optional)</span>
+            <button id="toggleComplexity" class="ghost small pill-toggle" type="button">
+              Show
+            </button>
+          </div>
+          <div id="complexityPanel" class="transcript-panel is-collapsed">
+            <textarea id="complexityLevels" class="template-input" placeholder="- Level 1&#10;- Level 2"></textarea>
+          </div>
+        </div>
+        <div class="field">
+          <span>Links (optional)</span>
+          <div class="inline-row">
+            <span class="muted">Add labeled links (one per block).</span>
+            <button id="addLinkBlock" type="button" class="ghost icon-btn">+ Add link</button>
+          </div>
+          <div id="linkList" class="example-list"></div>
+        </div>
+        <div class="field">
+          <span>Dynamic Content Examples (optional)</span>
+          <div class="inline-row">
+            <span class="muted">Add one or more snippets. Labels are optional.</span>
+            <button id="addDynamicExample" type="button" class="ghost icon-btn">+ Add snippet</button>
+          </div>
+          <div id="dynamicExampleList" class="example-list"></div>
+        </div>
+
+        <div class="panel__header">
+          <h2>Template</h2>
+          <p>
+            Use placeholders: {{PROJECT_NAME}}, {{PROJECT_SCOPE}}, {{TRANSCRIPT}}, {{DOC_TITLE}},
+            {{PROCESS_PURPOSE}}, {{SOURCE_MATERIAL_NAME}}, {{REQUIRED_RESOURCES}},
+            {{COMPLEXITY_LEVELS}}, {{LINKS}}, {{DYNAMIC_CONTENT_EXAMPLES}}.
+          </p>
+        </div>
+        <div class="toggle-row">
+          <label class="toggle">
+            <input id="livePreviewToggle" type="checkbox" checked />
+            <span>Live Preview</span>
+          </label>
+          <label class="toggle">
+            <input id="editTemplateToggle" type="checkbox" />
+            <span>Edit Template</span>
+          </label>
+        </div>
+        <textarea id="templateInput" class="template" spellcheck="false" readonly></textarea>
+      </section>
+
+      <section class="panel">
+        <div class="panel__header">
+          <h2>Transcript Input</h2>
+          <p>Paste text or drop a .vtt file to append to the transcript box.</p>
+        </div>
+        <div class="toggle-row">
+          <label class="toggle">
+            <input id="timestampToggle" type="checkbox" />
+            <span>Include timestamps</span>
+          </label>
+        </div>
+        <div class="upload">
+          <input id="vttInput" type="file" accept=".vtt" />
+          <div class="upload__hint">Drop .vtt here or click to upload</div>
+        </div>
+        <button id="toggleTranscript" class="ghost small pill-toggle">
+          Paste transcript text (alternative to .vtt)
+        </button>
+        <div id="transcriptPanel" class="transcript-panel is-collapsed">
+          <textarea id="transcriptInput" class="transcript" placeholder="Paste transcript text here..."></textarea>
+        </div>
+        <div class="panel__header">
+          <h3>Detected Speakers</h3>
+          <p>Informational only. Does not change the prompt.</p>
+        </div>
+        <div id="speakerList" class="speaker-list">
+          <span id="speakerEmpty" class="muted">No speakers detected.</span>
+        </div>
+        <div id="speakerMeta" class="muted speaker-meta"></div>
+
+        <div class="panel__header">
+          <h2>Core Prompt</h2>
+          <p>Generated from the template and transcript. Copy to Copilot.</p>
+        </div>
+        <div id="lineMeter" class="line-meter line-meter--ok">
+          <div class="line-meter__row">
+            <span id="lineCount">0 / 10,000 lines</span>
+            <span id="lineNote" class="muted"></span>
+          </div>
+          <div class="line-meter__track">
+            <div id="lineBar" class="line-meter__bar"></div>
+          </div>
+        </div>
+        <div class="output-actions">
+          <button id="buildBtn">Build Core Prompt</button>
+        </div>
+        <div class="output-shell">
+          <div class="output-header">
+            <span>Final Prompt Output</span>
+            <div class="output-actions-inline">
+              <span id="copyStatus" class="muted"></span>
+              <button id="copyBtnTop" class="ghost copy-pill">COPY</button>
+            </div>
+          </div>
+          <pre id="output" class="output" aria-live="polite"></pre>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Tip: Save multiple cards for SOPs, briefs, or summarization workflows.</p>
+    </footer>
+
+    <dialog id="cardDialog">
+      <form method="dialog" class="dialog">
+        <h3>Create a new card</h3>
+        <label class="field">
+          <span>Card name</span>
+          <input id="cardNameInput" type="text" placeholder="e.g. SOP Template" required />
+        </label>
+        <div class="dialog__actions">
+          <button value="cancel" class="ghost">Cancel</button>
+          <button id="createCardConfirm" value="create">Create</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script>
+      window.__promptStudioReady = false;
+      window.addEventListener("DOMContentLoaded", () => {
+        setTimeout(() => {
+          if (window.__promptStudioReady) return;
+          const banner = document.createElement("div");
+          banner.style.cssText =
+            "position:fixed;bottom:16px;left:16px;right:16px;padding:12px 16px;border-radius:12px;background:#fff1ee;border:1px solid #f2c2b8;color:#8f2c1f;font:14px/1.4 'Space Grotesk',sans-serif;z-index:9999;";
+          banner.textContent =
+            "Prompt Studio didn't finish loading. Refresh the page. If it keeps happening, check script.js for a syntax error.";
+          document.body.appendChild(banner);
+        }, 800);
+      });
+    </script>
+    <script src="script.js"></script>
+  </body>
+</html>
