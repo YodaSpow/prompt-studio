@@ -444,16 +444,18 @@ function renderDuration(text) {
 }
 
 function updateLineMeter(text) {
-  const maxLines = 10000;
+  const maxChars = 10240;
   const trimmed = text.trim();
-  const lines = trimmed ? trimmed.split(/\r?\n/).length : 0;
-  const percent = Math.min((lines / maxLines) * 100, 100);
-  lineCount.textContent = `${lines.toLocaleString()} / 10,000 lines`;
+  const chars = trimmed ? trimmed.length : 0;
+  // Subtract 1 to account for a common trailing newline when copying/saving output.
+  const adjustedChars = Math.max(chars - 1, 0);
+  const percent = Math.min((adjustedChars / maxChars) * 100, 100);
+  lineCount.textContent = `${adjustedChars.toLocaleString()} / 10,240 characters`;
   lineBar.style.width = `${percent}%`;
-  if (lines >= maxLines) {
+  if (adjustedChars >= maxChars) {
     lineMeter.classList.add("line-meter--bad");
     lineNote.textContent =
-      "Copilot is likely to choke beyond 10,000 lines. Consider using ChatGPT.";
+      "Copilot is likely to choke beyond 10,240 characters. Consider using ChatGPT.";
   } else {
     lineMeter.classList.remove("line-meter--bad");
     lineNote.textContent = "";
