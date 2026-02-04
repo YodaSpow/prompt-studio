@@ -31,6 +31,10 @@
         <div class="panel__header">
           <h2>Project Context</h2>
           <p>Define the scope and choose a card template.</p>
+          <div class="inline-row header-actions">
+            <span class="muted">Context controls</span>
+            <button id="resetContextBtn" class="ghost small" type="button">Reset context form</button>
+          </div>
         </div>
         <label class="field">
           <span>Project name</span>
@@ -131,14 +135,25 @@
             <input id="reduceLineBreaksToggle" type="checkbox" />
             <span>Reduce line breaks</span>
           </label>
+          <label class="toggle">
+            <input id="provideTxtDownloadToggle" type="checkbox" checked />
+            <span>Provide TXT download</span>
+          </label>
+          <label class="toggle">
+            <input id="cleanedOutputToggle" type="checkbox" checked />
+            <span>Cleaned output</span>
+          </label>
         </div>
         <div class="upload">
           <input id="vttInput" type="file" accept=".vtt" />
           <div class="upload__hint">Drop .vtt here or click to upload</div>
         </div>
-        <button id="toggleTranscript" class="ghost small pill-toggle">
-          Paste transcript text (alternative to .vtt)
-        </button>
+        <div class="inline-row">
+          <button id="toggleTranscript" class="ghost small pill-toggle">
+            Paste transcript text (alternative to .vtt)
+          </button>
+          <button id="clearTranscriptBtn" class="ghost small" type="button">Remove transcript</button>
+        </div>
         <div id="transcriptPanel" class="transcript-panel is-collapsed">
           <textarea id="transcriptInput" class="transcript" placeholder="Paste transcript text here..."></textarea>
         </div>
@@ -154,19 +169,38 @@
         <div class="panel__header">
           <h2>Core Prompt</h2>
           <p>Generated from the template and transcript. Copy to Copilot.</p>
+          <div id="outputInfoLine" class="muted output-info-line"></div>
         </div>
         <div id="lineMeter" class="line-meter line-meter--ok">
           <div class="line-meter__row">
-            <span id="lineCount">0 / 10,240 characters</span>
-            <span id="lineNote" class="muted"></span>
+            <span id="lineCount">Character count: 0</span>
           </div>
-          <div class="line-meter__track">
-            <div id="lineBar" class="line-meter__bar"></div>
+          <div class="line-meter__guide" role="img" aria-label="Prompt path and TXT attachment guidance">
+            <div class="line-meter__left">
+              <div id="promptFill" class="line-meter__prompt-fill">
+                <div id="promptLane" class="line-meter__prompt-label">
+                  0 / 10,240
+                </div>
+              </div>
+            </div>
+            <div id="txtLane" class="line-meter__right-label">
+              Use TXT Prompt: 0
+            </div>
+          </div>
+          <div class="line-meter__labels">
+            <span id="promptDetail">Copilot prompt box: within</span>
+            <span class="line-meter__divider">|</span>
+            <span id="txtDetail">Attach as TXT: M365 Copilot or ChatGPT (Context Prompt will be included in TXT)</span>
           </div>
         </div>
         <div id="savedChars" class="muted saved-chars"></div>
-        <div class="output-actions">
-          <button id="resetBtn">Reset all</button>
+        <div class="output-actions output-actions--compact">
+          <div class="output-actions-right">
+            <span id="downloadTxtHint" class="muted download-hint"></span>
+            <button id="downloadTxtBtn" class="ghost download-cta is-disabled" disabled>
+              Download TXT transcript
+            </button>
+          </div>
         </div>
         <div class="output-stack">
           <div class="panel__header output-live-header">
@@ -175,6 +209,7 @@
           <div class="output-shell">
             <div class="output-header">
               <span>Final Prompt Output</span>
+              <div id="outputModePills" class="output-mode-pills"></div>
               <div class="output-actions-inline">
                 <span id="copyStatus" class="muted"></span>
                 <button id="copyBtnTop" class="ghost copy-pill">COPY</button>

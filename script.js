@@ -142,15 +142,19 @@ const speakerEmpty = document.getElementById("speakerEmpty");
 const speakerMeta = document.getElementById("speakerMeta");
 const lineMeter = document.getElementById("lineMeter");
 const lineCount = document.getElementById("lineCount");
-const lineBar = document.getElementById("lineBar");
-const lineNote = document.getElementById("lineNote");
+const promptLane = document.getElementById("promptLane");
+const txtLane = document.getElementById("txtLane");
+const promptDetail = document.getElementById("promptDetail");
+const txtDetail = document.getElementById("txtDetail");
+const promptFill = document.getElementById("promptFill");
+const promptLaneLeft = document.querySelector(".line-meter__left");
 const savedChars = document.getElementById("savedChars");
 const copyStatus = document.getElementById("copyStatus");
 
 const newCardBtn = document.getElementById("newCardBtn");
 const saveCardBtn = document.getElementById("saveCardBtn");
 const deleteCardBtn = document.getElementById("deleteCardBtn");
-const resetBtn = document.getElementById("resetBtn");
+const resetContextBtn = document.getElementById("resetContextBtn");
 const copyBtnTop = document.getElementById("copyBtnTop");
 copyBtnTop.textContent = "COPY";
 
@@ -161,6 +165,13 @@ const vttInput = document.getElementById("vttInput");
 const editTemplateToggle = document.getElementById("editTemplateToggle");
 const timestampToggle = document.getElementById("timestampToggle");
 const reduceLineBreaksToggle = document.getElementById("reduceLineBreaksToggle");
+const provideTxtDownloadToggle = document.getElementById("provideTxtDownloadToggle");
+const cleanedOutputToggle = document.getElementById("cleanedOutputToggle");
+const downloadTxtBtn = document.getElementById("downloadTxtBtn");
+const downloadTxtHint = document.getElementById("downloadTxtHint");
+const clearTranscriptBtn = document.getElementById("clearTranscriptBtn");
+const outputInfoLine = document.getElementById("outputInfoLine");
+const outputModePills = document.getElementById("outputModePills");
 const transcriptPanel = document.getElementById("transcriptPanel");
 const toggleTranscript = document.getElementById("toggleTranscript");
 const complexityPanel = document.getElementById("complexityPanel");
@@ -342,8 +353,103 @@ function copyPrompt() {
   navigator.clipboard.writeText(text);
 }
 
-function resetAll() {
-  const ok = window.confirm("Reset all fields to defaults? This cannot be undone.");
+function looksLikeVtt(text) {
+  return /WEBVTT|-->|<v\s+[^>]+>/i.test(text);
+}
+
+function sanitizeFileNamePart(text) {
+  return (text || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function getDatedFileName() {
+  const baseSource =
+    sopTitleInput.value.trim() ||
+    projectNameInput.value.trim() ||
+    projectScopeInput.value.trim() ||
+    "transcript";
+  const base = sanitizeFileNamePart(baseSource) || "transcript";
+  const now = new Date();
+  const days = ["SUN", "MON", "TUE", "WED", "THUR", "FRI", "SAT"];
+  const day = days[now.getDay()];
+  const dd = String(now.getDate()).padStart(2, "0");
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const yyyy = now.getFullYear();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const min = String(now.getMinutes()).padStart(2, "0");
+  const ss = String(now.getSeconds()).padStart(2, "0");
+  return `${base}_${day}_${dd}-${mm}-${yyyy}_${hh}-${min}-${ss}.txt`;
+}
+
+function getTranscriptForTxtExport() {
+  let text = transcriptInput.value.trim();
+  if (!text) return "";
+
+  if (cleanedOutputToggle.checked) {
+    if (looksLikeVtt(text)) {
+      const parsed = parseVtt(text, timestampToggle.checked);
+      if (parsed) {
+        text = parsed;
+      }
+    }
+    text = text
+      .split(/\r?\n/)
+      .map((line) => line.trimEnd())
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
+  return applyLineBreakOptions(text).trim();
+}
+
+function getTxtExportContent() {
+  const transcript = getTranscriptForTxtExport();
+  if (!transcript) return "";
+  const promptReference = applyLineBreakOptions(
+    getPromptText({ transcriptOverride: transcript })
+  ).trim();
+  return `# Prompt Reference\n${promptReference}\n\n# Transcript\n${transcript}\n`;
+}
+
+function updateTxtDownloadState() {
+  const hasTranscript = transcriptInput.value.trim().length > 0;
+  const enabled = provideTxtDownloadToggle.checked && hasTranscript;
+  downloadTxtBtn.disabled = !enabled;
+  downloadTxtBtn.classList.toggle("is-disabled", !enabled);
+  downloadTxtBtn.classList.toggle("is-ready", enabled);
+
+  if (!provideTxtDownloadToggle.checked) {
+    downloadTxtHint.textContent = "Enable Provide TXT download to export.";
+    return;
+  }
+  if (!hasTranscript) {
+    downloadTxtHint.textContent = "Add transcript or .vtt to enable TXT download.";
+    return;
+  }
+  downloadTxtHint.textContent = `Ready: ${getDatedFileName()}`;
+}
+
+function downloadTxtTranscript() {
+  if (downloadTxtBtn.disabled) return;
+  const content = getTxtExportContent();
+  if (!content) return;
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = getDatedFileName();
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(href);
+}
+
+function resetContextForm() {
+  const ok = window.confirm("Reset context form fields? This cannot be undone.");
   if (!ok) return;
 
   ensureDefaultCard();
@@ -362,7 +468,6 @@ function resetAll() {
   sourceMaterialInput.value = "";
   requiredResourcesInput.value = "";
   complexityLevelsInput.value = "";
-  transcriptInput.value = "";
   cardNameInput.value = "";
 
   linkList.innerHTML = "";
@@ -370,23 +475,26 @@ function resetAll() {
 
   editTemplateToggle.checked = false;
   templateInput.readOnly = true;
-  timestampToggle.checked = false;
-  reduceLineBreaksToggle.checked = false;
 
-  transcriptPanel.classList.add("is-collapsed");
-  toggleTranscript.textContent = "Paste transcript text (alternative to .vtt)";
-  complexityPanel.classList.add("is-collapsed");
-  toggleComplexity.textContent = "Show";
+  updateLineMeter(getAdjustedPromptText());
+  buildPrompt();
+  updateCopyState();
+}
 
+function clearTranscript() {
+  const ok = window.confirm("Remove transcript and VTT data? This cannot be undone.");
+  if (!ok) return;
+  transcriptInput.value = "";
   vttInput.value = "";
   lastVttRaw = "";
   lastVttParsed = "";
   renderSpeakers([]);
   speakerMeta.textContent = "";
-
+  transcriptPanel.classList.add("is-collapsed");
+  toggleTranscript.textContent = "Paste transcript text (alternative to .vtt)";
   updateLineMeter(getAdjustedPromptText());
-  buildPrompt();
   updateCopyState();
+  updateLivePreview();
 }
 
 function parseVtt(text, includeTimestamps = false) {
@@ -509,35 +617,97 @@ function updateLineMeter(text) {
   const maxChars = 10240;
   const trimmed = text.trim();
   const chars = trimmed ? trimmed.length : 0;
+  const hasTranscript = transcriptInput.value.trim().length > 0;
   // Subtract 1 to account for a common trailing newline when copying/saving output.
   const adjustedChars = Math.max(chars - 1, 0);
-  const percent = Math.min((adjustedChars / maxChars) * 100, 100);
-  lineCount.textContent = `${adjustedChars.toLocaleString()} / 10,240 characters`;
-  lineBar.style.width = `${percent}%`;
-  if (adjustedChars >= maxChars) {
+  const isOverLimit = adjustedChars >= maxChars;
+  const promptPercent = Math.min(adjustedChars / maxChars, 1);
+  lineCount.textContent = `Character count: ${adjustedChars.toLocaleString()}`;
+  promptLane.textContent = `${adjustedChars.toLocaleString()} / 10,240`;
+  txtLane.textContent = "TXT Prompt";
+  txtDetail.textContent = "";
+  if (isOverLimit && !provideTxtDownloadToggle.checked) {
+    txtDetail.textContent = "‼️ Action needed: enable TXT export or use ChatGPT";
+  } else if (!provideTxtDownloadToggle.checked) {
+    txtDetail.textContent = "TXT export: off";
+  } else if (!hasTranscript) {
+    txtDetail.textContent = "TXT not ready: add transcript or .vtt";
+  } else {
+    const readyText = document.createElement("span");
+    readyText.textContent = "TXT ready:";
+    const contextPill = document.createElement("span");
+    contextPill.className = "txt-pill";
+    contextPill.textContent = "context prompt";
+    const transcriptPill = document.createElement("span");
+    transcriptPill.className = "txt-pill";
+    transcriptPill.textContent = cleanedOutputToggle.checked ? "transcript (cleaned)" : "transcript";
+    const note = document.createElement("span");
+    note.className = "txt-detail-note";
+    note.textContent = "(M365 Copilot / ChatGPT)";
+    txtDetail.appendChild(readyText);
+    txtDetail.appendChild(contextPill);
+    txtDetail.appendChild(transcriptPill);
+    txtDetail.appendChild(note);
+  }
+  const leftWidth = promptLaneLeft ? promptLaneLeft.getBoundingClientRect().width : 0;
+  const estimatedLabelPx = promptLane.textContent.length * 7 + 20;
+  const minPercentForLabel =
+    leftWidth > 0 ? Math.min((estimatedLabelPx / leftWidth) * 100, 100) : 0;
+  const targetPercent = Math.max(promptPercent * 100, minPercentForLabel);
+  promptFill.style.width = `${Math.min(targetPercent, 100)}%`;
+  if (isOverLimit) {
     lineMeter.classList.add("line-meter--bad");
-    lineNote.textContent =
-      "May exceed Copilot’s 10,240-character limit. Use ChatGPT if it fails.";
+    lineMeter.classList.remove("line-meter--ok");
+    promptFill.classList.add("is-over");
+    promptDetail.textContent = "Prompt box: Over limit";
   } else {
     lineMeter.classList.remove("line-meter--bad");
-    lineNote.textContent = "";
+    lineMeter.classList.add("line-meter--ok");
+    promptFill.classList.remove("is-over");
+    promptDetail.textContent = "Prompt box: OK";
   }
 }
 
 function updateCopyState() {
   copyBtnTop.textContent = "COPY";
-  const hasTranscript = transcriptInput.value.trim().length > 0;
-  if (!hasTranscript) {
-    copyBtnTop.disabled = true;
-    copyBtnTop.classList.add("is-disabled");
-    copyBtnTop.classList.add("is-hidden");
-    copyStatus.textContent = "Add transcript text or a .vtt file to enable copy.";
-    return;
-  }
   copyBtnTop.disabled = false;
   copyBtnTop.classList.remove("is-disabled");
   copyBtnTop.classList.remove("is-hidden");
   copyStatus.textContent = "";
+  const hasTranscript = transcriptInput.value.trim().length > 0;
+  const hasContext =
+    projectNameInput.value.trim() ||
+    projectScopeInput.value.trim() ||
+    sopTitleInput.value.trim() ||
+    processPurposeInput.value.trim() ||
+    sourceMaterialInput.value.trim() ||
+    requiredResourcesInput.value.trim() ||
+    complexityLevelsInput.value.trim() ||
+    hasLinkContent() ||
+    hasDynamicContent();
+  resetContextBtn.classList.toggle("is-hidden", !hasContext);
+  clearTranscriptBtn.classList.toggle("is-hidden", !hasTranscript);
+  outputInfoLine.textContent = hasTranscript
+    ? ""
+    : "Transcript not added. Output is context only. For long transcripts, use TXT + M365 Copilot or ChatGPT.";
+  outputInfoLine.style.display = hasTranscript ? "none" : "block";
+  outputModePills.innerHTML = "";
+  if (hasTranscript) {
+    const contextPill = document.createElement("span");
+    contextPill.className = "output-mode-pill";
+    contextPill.textContent = "Context";
+    const transcriptPill = document.createElement("span");
+    transcriptPill.className = "output-mode-pill";
+    transcriptPill.textContent = "Transcript";
+    outputModePills.appendChild(contextPill);
+    outputModePills.appendChild(transcriptPill);
+  } else {
+    const contextOnlyPill = document.createElement("span");
+    contextOnlyPill.className = "output-mode-pill";
+    contextOnlyPill.textContent = "Context only";
+    outputModePills.appendChild(contextOnlyPill);
+  }
+  updateTxtDownloadState();
 }
 
 function handleVttUpload(file) {
@@ -575,8 +745,10 @@ cardDialog.addEventListener("close", () => {
 
 saveCardBtn.addEventListener("click", saveCard);
 deleteCardBtn.addEventListener("click", deleteCard);
-resetBtn.addEventListener("click", resetAll);
+resetContextBtn.addEventListener("click", resetContextForm);
 copyBtnTop.addEventListener("click", copyPrompt);
+clearTranscriptBtn.addEventListener("click", clearTranscript);
+downloadTxtBtn.addEventListener("click", downloadTxtTranscript);
 
 vttInput.addEventListener("change", (event) => {
   const file = event.target.files[0];
@@ -586,6 +758,12 @@ vttInput.addEventListener("change", (event) => {
 reduceLineBreaksToggle.addEventListener("change", () => {
   updateLineMeter(getAdjustedPromptText());
   updateLivePreview();
+});
+
+provideTxtDownloadToggle.addEventListener("change", updateTxtDownloadState);
+cleanedOutputToggle.addEventListener("change", () => {
+  updateTxtDownloadState();
+  updateLineMeter(getAdjustedPromptText());
 });
 
 transcriptInput.addEventListener("input", () => {
@@ -630,6 +808,10 @@ window.addEventListener("pageshow", () => {
   updateCopyState();
 });
 
+window.addEventListener("resize", () => {
+  updateLineMeter(output.textContent || getAdjustedPromptText());
+});
+
 toggleTranscript.addEventListener("click", () => {
   const isCollapsed = transcriptPanel.classList.contains("is-collapsed");
   if (isCollapsed) {
@@ -653,22 +835,27 @@ toggleComplexity.addEventListener("click", () => {
 });
 
 timestampToggle.addEventListener("change", () => {
-  if (!lastVttRaw) return;
-  const reparsed = parseVtt(lastVttRaw, timestampToggle.checked);
-  if (!reparsed) return;
-  const current = transcriptInput.value.trim();
-  const idx = current.lastIndexOf(lastVttParsed);
-  if (idx !== -1) {
-    const updated =
-      current.slice(0, idx) +
-      reparsed +
-      current.slice(idx + lastVttParsed.length);
-    transcriptInput.value = updated.trim();
-    lastVttParsed = reparsed;
-    updateLineMeter(getAdjustedPromptText());
-    updateCopyState();
-    updateLivePreview();
+  if (lastVttRaw) {
+    const reparsed = parseVtt(lastVttRaw, timestampToggle.checked);
+    if (!reparsed) {
+      updateTxtDownloadState();
+      return;
+    }
+    const current = transcriptInput.value.trim();
+    const idx = current.lastIndexOf(lastVttParsed);
+    if (idx !== -1) {
+      const updated =
+        current.slice(0, idx) +
+        reparsed +
+        current.slice(idx + lastVttParsed.length);
+      transcriptInput.value = updated.trim();
+      lastVttParsed = reparsed;
+      updateLineMeter(getAdjustedPromptText());
+      updateCopyState();
+      updateLivePreview();
+    }
   }
+  updateTxtDownloadState();
 });
 
 addDynamicExampleBtn.addEventListener("click", (event) => {
