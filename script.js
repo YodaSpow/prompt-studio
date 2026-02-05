@@ -155,8 +155,8 @@ const newCardBtn = document.getElementById("newCardBtn");
 const saveCardBtn = document.getElementById("saveCardBtn");
 const deleteCardBtn = document.getElementById("deleteCardBtn");
 const resetContextBtn = document.getElementById("resetContextBtn");
-const copyBtnTop = document.getElementById("copyBtnTop");
-copyBtnTop.textContent = "COPY";
+const copyContextBtn = document.getElementById("copyContextBtn");
+const copyFullBtn = document.getElementById("copyFullBtn");
 
 const cardDialog = document.getElementById("cardDialog");
 const cardNameInput = document.getElementById("cardNameInput");
@@ -346,9 +346,32 @@ function updateLivePreview() {
 }
 
 
-function copyPrompt() {
-  if (copyBtnTop.disabled) return;
-  const text = output.textContent.trim();
+function getCleanedTranscriptForCopy() {
+  let text = transcriptInput.value.trim();
+  if (!text) return "";
+  if (cleanedOutputToggle.checked && looksLikeVtt(text)) {
+    const parsed = parseVtt(text, timestampToggle.checked);
+    if (parsed) text = parsed;
+  }
+  return applyLineBreakOptions(text).trim();
+}
+
+function copyContextPrompt() {
+  if (copyContextBtn.disabled) return;
+  const text = applyLineBreakOptions(
+    getPromptText({ transcriptOverride: "" })
+  ).trim();
+  if (!text) return;
+  navigator.clipboard.writeText(text);
+}
+
+function copyFullPrompt() {
+  if (copyFullBtn.disabled) return;
+  const transcript = getCleanedTranscriptForCopy();
+  if (!transcript) return;
+  const text = applyLineBreakOptions(
+    getPromptText({ transcriptOverride: transcript })
+  ).trim();
   if (!text) return;
   navigator.clipboard.writeText(text);
 }
@@ -669,12 +692,14 @@ function updateLineMeter(text) {
 }
 
 function updateCopyState() {
-  copyBtnTop.textContent = "COPY";
-  copyBtnTop.disabled = false;
-  copyBtnTop.classList.remove("is-disabled");
-  copyBtnTop.classList.remove("is-hidden");
+  copyContextBtn.disabled = false;
+  copyContextBtn.classList.remove("is-disabled");
+  copyContextBtn.classList.remove("is-hidden");
   copyStatus.textContent = "";
   const hasTranscript = transcriptInput.value.trim().length > 0;
+  copyFullBtn.disabled = !hasTranscript;
+  copyFullBtn.classList.toggle("is-disabled", !hasTranscript);
+  copyFullBtn.classList.toggle("is-hidden", !hasTranscript);
   const hasContext =
     projectNameInput.value.trim() ||
     projectScopeInput.value.trim() ||
@@ -746,7 +771,8 @@ cardDialog.addEventListener("close", () => {
 saveCardBtn.addEventListener("click", saveCard);
 deleteCardBtn.addEventListener("click", deleteCard);
 resetContextBtn.addEventListener("click", resetContextForm);
-copyBtnTop.addEventListener("click", copyPrompt);
+copyContextBtn.addEventListener("click", copyContextPrompt);
+copyFullBtn.addEventListener("click", copyFullPrompt);
 clearTranscriptBtn.addEventListener("click", clearTranscript);
 downloadTxtBtn.addEventListener("click", downloadTxtTranscript);
 

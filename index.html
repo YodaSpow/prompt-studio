@@ -204,15 +204,18 @@
         </div>
         <div class="output-stack">
           <div class="panel__header output-live-header">
-            <h3>Live Preview</h3>
+            <div class="inline-row live-preview-row">
+              <h3>Live Preview</h3>
+              <div id="outputModePills" class="output-mode-pills"></div>
+            </div>
           </div>
           <div class="output-shell">
             <div class="output-header">
-              <span>Final Prompt Output</span>
-              <div id="outputModePills" class="output-mode-pills"></div>
+              <span class="sr-only">Final Prompt Output</span>
               <div class="output-actions-inline">
                 <span id="copyStatus" class="muted"></span>
-                <button id="copyBtnTop" class="ghost copy-pill">COPY</button>
+                <button id="copyContextBtn" class="ghost copy-pill">COPY CONTEXT PROMPT ONLY</button>
+                <button id="copyFullBtn" class="ghost copy-pill">COPY ALL (chatGPT)</button>
               </div>
             </div>
             <pre id="output" class="output" aria-live="polite"></pre>
